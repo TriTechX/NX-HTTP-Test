@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #include "../utils/ui.hpp"
 #include "../utils/system.hpp"
@@ -111,19 +112,43 @@ bool MenuScreen::pingCheck(){
 
     inet_pton(AF_INET, host_ip.c_str(), &server.sin_addr);
 
+    // set socket to be non-blocking so connect returns instantly
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    connect(sock, (sockaddr*)&server, sizeof(server)); // returns an EINPROGRESS
+
+    fd_set write_fds;
+    FD_ZERO(&write_fds);
+    FD_SET(sock, &write_fds);
+
     // set timeouts
     struct timeval timeout{};
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
 
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-
-    // if returned -ve error code, connection failed
-    if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0){
+    // if returned -ve error code, connection failed, now waits for timeout of 5 seconds
+    if (select(sock + 1, nullptr, &write_fds, nullptr, &timeout) <= 0){
         debugPrint("Connection failed.", this->debugBox);
+        close(sock);
         return false;
     }
+
+    int err = 0;
+    socklen_t len = sizeof(err);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);
+
+    if (err != 0){
+        debugPrint("Connection failed.", this->debugBox);
+        close(sock);
+        return false;
+    }
+
+    fcntl(sock, F_SETFL, flags);
+
+    // set send and rcv timeouts
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
     // form the raw get request
     std::string request = formPostRequest(host_ip, data_to_send);
