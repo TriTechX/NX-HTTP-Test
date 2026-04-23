@@ -20,6 +20,7 @@ class MenuScreen : public Aether::Screen{
         void setHostDetails();
         std::pair<const std::string, const std::string> getHostDetails();
         std::string formPostRequest(const std::string& dest_ip, const std::string& body);
+        bool parsePort(const std::string& port_str, unsigned int& out_port);
         
         void onLoad() override;
         void onUnload() override;

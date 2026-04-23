@@ -38,7 +38,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
 APP_TITLE   := NX HTTP Test
-APP_VERSION := 0.0.0
+APP_VERSION := 0.0.1
 APP_AUTHOR  := TriTech
 
 TARGET		:=	$(notdir $(CURDIR))

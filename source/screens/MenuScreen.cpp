@@ -55,6 +55,30 @@ std::string MenuScreen::formPostRequest(const std::string& dest_ip, const std::s
     
     return request;
 }
+
+bool MenuScreen::parsePort(const std::string& port_str, unsigned int& out_port){
+    errno = 0;
+
+    char* end;
+    unsigned long value = std::strtoul(port_str.c_str(), &end, 10);
+
+    if (end == port_str.c_str()){
+        // no digits were found
+        return false;
+    }
+    if (*end != '\0'){
+        // junk data
+        return false;
+    }
+    if (errno == ERANGE || value > UINT16_MAX){
+        // too large
+        return false;
+    }
+
+    out_port = static_cast<unsigned int>(value);
+    return true;
+}
+
 bool MenuScreen::pingCheck(){
     const std::string data_to_send = getTextInput("Data to send:");
 
@@ -71,7 +95,13 @@ bool MenuScreen::pingCheck(){
         return false;
     }
     
-    unsigned int host_port = std::stoul(host_port_str);
+    unsigned int host_port;
+    bool success = parsePort(host_port_str, host_port);
+
+    if (!success){
+        debugPrint("Invalid port, expected unsigned int.", this->debugBox);
+        return false;
+    }
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
